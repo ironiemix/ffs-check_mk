@@ -1,6 +1,8 @@
 # ffs-check_mk
 check_mk Skripte für das Monitoring der Freifunk Stuttgart Gateways
 
+Zur Verwendung einfach dieses Repo nach <code>/etc/check_mk/</code> clonen und die Datei mrpe.conf anpassen. 
+
 ## Dependencies und Konfiguration auf dem Gateway
 
 Auf dem Gateway müssen für debian basierte Systeme die folgenden Abhängigkeiten erfüllt sein:
