@@ -1,0 +1,81 @@
+#!/bin/bash 
+
+# Perfect Privacy + Batman Test für Freifunk Stuttgart
+# Frank Schiebel <frank@linuxmuster.net>
+# GPLv3
+
+# FIXME
+# Option, welcher VPN Provider getestet werden soll
+# (PP, Freie Netze e.V., andere?)
+
+# This script checks the Perfect Privacy connection for
+# check_mk
+
+# programs
+BATCTL="/usr/sbin/batctl"
+JSONPARSE="/usr/bin/jq"
+
+# get arguments
+
+while getopts 'i:h' OPT; do
+  case $OPT in
+    i)  vpn_iface=$OPTARG;;
+    h)  hlp="yes";;
+    *)  unknown="yes";;
+  esac
+done
+
+# usage
+HELP="
+    usage: $0 -i <vpn_iface> [ -h ]
+
+    syntax:
+
+            -i --> VPN interface. i.e. tun0
+            -h --> print this help screen
+"
+
+if [ "$hlp" = "yes" -o $# -lt 1 ]; then
+  echo "$HELP"
+  exit 0
+fi
+
+iface_exists=false
+ifconfig "$vpn_iface" &> /dev/null && iface_exists=true
+
+batman_gateway=false
+$BATCTL gw | grep ^server > /dev/null 2>&1 && batman_gateway=true
+
+pp_ok=$(curl -s --interface tun0 https://checkip.perfect-privacy.com/json  | $JSONPARSE .VPN)
+
+MSG=""
+SEP=""
+EXITVALUE=0
+
+if [ $iface_exists != "true" ]; then
+    MSG="$MSG VPN Interface $vpn_iface doesnt exist"
+    SEP="::"
+    EXITVALUE=2
+fi
+
+if [ $batman_gateway != "true" ]; then
+    MSG="$MSG $SEP B.A.T.M.A.N. is NOT in gateway mode"
+    SEP=" :: "
+    EXITVALUE=2
+fi
+
+if [ $pp_ok != "true" ]; then
+    MSG="$MSG $SEP PP-Checkip returns NOVPN"
+    SEP=" :: "
+    EXITVALUE=2
+fi
+
+if [ $EXITVALUE -gt 0 ]; then
+    echo "CRITICAl - $MSG"
+    exit $EXITVALUE
+else
+    ppserver=$(curl -s --interface tun0 https://checkip.perfect-privacy.com/json  | $JSONPARSE .DNS)
+    echo "OK - device $vpn_iface exists, B.A.T.M.A.N. is in gw mode, PP-Checkip returns VPNOK ($ppserver)"
+    exit 0
+fi
+

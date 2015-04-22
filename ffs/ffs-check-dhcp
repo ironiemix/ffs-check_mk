@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#
+# DHCP Check für Freifunk Stuttgart GWs
+# Frank Schiebel <frank@linuxmuster.net>
+#
+
+# Internes Interface von ffs
+IFACE="ffs-br"
+# IP des aktuellen GWs herausfinden
+DHCPSRVIP=$(ip addr show scope global $IFACE | grep 172.21 | awk -F"/" ' {print $1}' | sed -e "s/inet//" | sed -e "s/ //g")
+# Timeout für die DHCP Abfrage
+TIMEOUT=8
+# Nagios Check ausführen
+/usr/lib/nagios/plugins/check_dhcp  -t $TIMEOUT -i $IFACE -s $DHCPSRVIP -m b6:2d:3e:0a:fc:ee

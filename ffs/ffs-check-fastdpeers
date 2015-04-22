@@ -1,0 +1,47 @@
+#!/bin/bash 
+
+# fastd Peers Check für die Freifunk Stuttgart GWs
+# Frank Schiebel <frank@linuxmuster.net>
+# GPLv3
+
+# programs
+STATUSPL="/etc/check_mk/ffs/status.pl"
+FASTDSOCKET="/var/run/fastd-ffs.status"
+JSONPARSE="/usr/bin/jq"
+
+# Anzahl der Verbundenen Peers
+numpeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[].address" | grep -v any | wc -l)
+# Wieviele Gateways?
+numgwpeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[] | {address,name}" | grep -A 1 gw[0-9] | grep -v any  | grep address | wc -l)
+# Wieviele "normale" Nodes?
+numnodepeers=$(( $numpeers-$numgwpeers ))
+# Namen der verbundenen Peers
+nameofgwpeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[] | {address,name}" | grep -A 1 gw[0-9] | grep -v any  | grep -B 1 address  | grep name | awk -F: '{print $2}' | sed -e "s/,//g" | sed -e 's/"//g' | sed -e "s/ //" | sort)
+nameofnodepeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[] | {address,name}" |  grep -v any  | grep -B 1 address  | grep name | grep -v gw[0-9] | awk -F: '{print $2}' | sed -e "s/,//g" | sed -e 's/"//g' | sed -e "s/ //" | sort)
+
+gwnames=""
+for gwname in $nameofgwpeers; do
+	gwnames="$gwnames $gwname"
+done
+
+nodenames=""
+for nodename in $nameofnodepeers; do
+	nodenames="$nodenames $nodename"
+done
+
+MSG="OK - $numpeers fastd-nodes connected, $numgwpeers GWs ($gwnames), $numnodepeers Nodes ($nodenames)"
+SEP=""
+EXITVALUE=0
+
+if [ $numpeers -lt 3 ]; then 
+	MSG="WARN - $numpeers fastd-nodes connected, $numgwpeers GWs ($gwnames), $numnodepeers Nodes"
+	EXITVALUE=1
+fi
+
+if [ $numpeers -lt 1 ]; then 
+	MSG="CRIT - $numpeers fastd-nodes connected, $numgwpeers GWs ($gwnames), $numnodepeers Nodes"
+	EXITVALUE=2
+fi
+echo "$MSG | numpeers=$numpeers numgws=$numgwpeers numnodes=$numnodepeers"
+exit $EXITVALUE
+
