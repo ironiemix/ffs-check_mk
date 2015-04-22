@@ -1,7 +1,8 @@
 # ffs-check_mk
 check_mk Skripte für das Monitoring der Freifunk Stuttgart Gateways
 
-Zur Verwendung einfach dieses Repo nach <code>/etc/check_mk/</code> clonen und die Datei mrpe.conf anpassen. 
+* Zur Verwendung einfach dieses Repo nach <code>/etc/check_mk/</code> clonen und die Datei mrpe.conf anpassen. 
+* Dann dem Betreuer des Monitorservers bekanntgeben, welches Gateway inst monitoring aufgenommen werden soll
 
 ## Dependencies und Konfiguration auf dem Gateway
 
