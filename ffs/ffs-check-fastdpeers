@@ -9,15 +9,19 @@ STATUSPL="/etc/check_mk/ffs/status.pl"
 FASTDSOCKET="/var/run/fastd-ffs.status"
 JSONPARSE="/usr/bin/jq"
 
+[ -e /etc/default/ffs-check-fastdpeers ] && . /etc/default/ffs-check-fastdpeers
+
+STATUSOUT=$($STATUSPL $FASTDSOCKET)
 # Anzahl der Verbundenen Peers
-numpeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[].address" | grep -v any | wc -l)
-# Wieviele Gateways?
-numgwpeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[] | {address,name}" | grep -A 1 gw[0-9] | grep -v any  | grep address | wc -l)
-# Wieviele "normale" Nodes?
-numnodepeers=$(( $numpeers-$numgwpeers ))
+namepeers=$(jq '.peers[] | if .address!="any" then .name else empty end' <<<$STATUSOUT)
+numpeers=$(wc -w <<<$namepeers)
 # Namen der verbundenen Peers
-nameofgwpeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[] | {address,name}" | grep -A 1 gw[0-9] | grep -v any  | grep -B 1 address  | grep name | awk -F: '{print $2}' | sed -e "s/,//g" | sed -e 's/"//g' | sed -e "s/ //" | sort)
-nameofnodepeers=$($STATUSPL $FASTDSOCKET | $JSONPARSE ".peers[] | {address,name}" |  grep -v any  | grep -B 1 address  | grep name | grep -v gw[0-9] | awk -F: '{print $2}' | sed -e "s/,//g" | sed -e 's/"//g' | sed -e "s/ //" | sort)
+nameofgwpeers=$(xargs -n1 echo <<< $namepeers | grep '^gw[0-9]' | sort)
+nameofnodepeers=$(xargs -n1 echo <<< $namepeers | grep -v '^gw[0-9]' | sort)
+# Wieviele "normale" Nodes?
+numnodepeers=$( wc -w <<< $nameofnodepeers )
+# Wieviele Gateways?
+numgwpeers=$( wc -w <<< $nameofgwpeers )
 
 gwnames=""
 for gwname in $nameofgwpeers; do

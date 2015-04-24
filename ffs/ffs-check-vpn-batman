@@ -41,12 +41,13 @@ if [ "$hlp" = "yes" -o $# -lt 1 ]; then
 fi
 
 iface_exists=false
-ifconfig "$vpn_iface" &> /dev/null && iface_exists=true
+ip a l dev "$vpn_iface" > /dev/null 2>&1 && iface_exists=true
 
 batman_gateway=false
 $BATCTL gw | grep ^server > /dev/null 2>&1 && batman_gateway=true
 
-pp_ok=$(curl -s --interface tun0 https://checkip.perfect-privacy.com/json  | $JSONPARSE .VPN)
+CURLOUT=$(curl -s --insecure --interface "$vpn_iface" https://checkip.perfect-privacy.com/json)
+pp_ok=$(ip a l | grep -q $($JSONPARSE .IP <<<$CURLOUT | tr '"' ' ') || echo true)
 
 MSG=""
 SEP=""
@@ -64,7 +65,7 @@ if [ $batman_gateway != "true" ]; then
     EXITVALUE=2
 fi
 
-if [ $pp_ok != "true" ]; then
+if [ "x$pp_ok" != "xtrue" ]; then
     MSG="$MSG $SEP PP-Checkip returns NOVPN"
     SEP=" :: "
     EXITVALUE=2
@@ -74,7 +75,7 @@ if [ $EXITVALUE -gt 0 ]; then
     echo "CRITICAl - $MSG"
     exit $EXITVALUE
 else
-    ppserver=$(curl -s --interface tun0 https://checkip.perfect-privacy.com/json  | $JSONPARSE .DNS)
+    ppserver=$($JSONPARSE .DNS <<<$CURLOUT)
     echo "OK - device $vpn_iface exists, B.A.T.M.A.N. is in gw mode, PP-Checkip returns VPNOK ($ppserver)"
     exit 0
 fi
